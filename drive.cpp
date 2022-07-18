@@ -200,8 +200,8 @@ void Drive::logCWarnState(bool cwarn)
             message.c_str(),
             phosphor::logging::entry("REDFISH_MESSAGE_ID=%s", messageIdWarning),
             phosphor::logging::entry("REDFISH_MESSAGE_ARGS=%s,%s,%s,%s",
-                                     "NVM Subsystem", this->name.c_str(),
-                                     "False", "True"));
+                                     "Critical Warning (CWARN)",
+                                     this->name.c_str(), "False", "True"));
     }
     else
     {
@@ -211,8 +211,8 @@ void Drive::logCWarnState(bool cwarn)
             message.c_str(),
             phosphor::logging::entry("REDFISH_MESSAGE_ID=%s", messageIdNormal),
             phosphor::logging::entry("REDFISH_MESSAGE_ARGS=%s,%s,%s,%s",
-                                     "NVM Subsystem", this->name.c_str(),
-                                     "True", "False"));
+                                     "Critical Warning (CWARN)",
+                                     this->name.c_str(), "True", "False"));
     }
 }
 
