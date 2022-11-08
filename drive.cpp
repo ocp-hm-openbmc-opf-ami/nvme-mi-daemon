@@ -1185,9 +1185,8 @@ std::tuple<int, std::string>
     {
         getFeaturesJson["Arbitration"] = arbitration.value();
     }
-    auto tempThresholdUpper =
-        getFeatureString<nvmemi::protocol::FeatureID::arbitration>(
-            *this->mctpWrapper, this->mctpEid, yield);
+    auto tempThresholdUpper = getFeatureTemperatureThreshold(
+        *this->mctpWrapper, this->mctpEid, yield);
     if (tempThresholdUpper)
     {
         getFeaturesJson["ThresholdUpper"] = tempThresholdUpper.value();
