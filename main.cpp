@@ -56,7 +56,8 @@ class Application
         dbusConnection =
             std::make_shared<sdbusplus::asio::connection>(*ioContext);
         objectServer =
-            std::make_shared<sdbusplus::asio::object_server>(dbusConnection);
+            std::make_shared<sdbusplus::asio::object_server>(dbusConnection, true);
+	objectServer->add_manager("/xyz/openbmc_project/sensors");
         dbusConnection->request_name(serviceName);
 
         boost::asio::spawn(
