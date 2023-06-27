@@ -72,10 +72,20 @@ class Application
                 wrapper->detectMctpEndpoints(yield);
                 for (auto& [eid, service] : wrapper->getEndpointMap())
                 {
-                    auto drive = std::make_shared<nvmemi::Drive>(
-                        getDriveName(wrapper, eid), eid, *this->objectServer,
-                        wrapper);
-                    this->drives.emplace(eid, drive);
+		    try
+		    {
+                        auto drive = std::make_shared<nvmemi::Drive>(
+                            getDriveName(wrapper, eid), eid, *this->objectServer,
+                            wrapper);
+                        this->drives.emplace(eid, drive);
+		    }
+		    catch (const std::exception& e)
+		    {
+			phosphor::logging::log<phosphor::logging::level::WARNING>(
+			    "Error while creating Drive object",
+			    phosphor::logging::entry("MSG=%s", e.what()), 
+			    phosphor::logging::entry("EID=%d", static_cast<int>(eid)));
+		    }
                 }
                 if (!this->drives.empty())
                 {
@@ -217,10 +227,20 @@ void DeviceUpdateHandler::operator()(
     {
         case mctpw::Event::EventType::deviceAdded: {
             auto wrapper = app.mctpWrappers.at(bindingType);
-            auto drive = std::make_shared<nvmemi::Drive>(
-                app.getDriveName(wrapper, evt.eid), evt.eid, *app.objectServer,
-                wrapper);
-            app.drives.emplace(evt.eid, drive);
+	    try
+	    {
+                auto drive = std::make_shared<nvmemi::Drive>(
+                    app.getDriveName(wrapper, evt.eid), evt.eid, *app.objectServer,
+                    wrapper);
+                app.drives.emplace(evt.eid, drive);
+	    }
+	    catch (const std::exception& e)
+	    {
+		phosphor::logging::log<phosphor::logging::level::WARNING>(
+		    "Error while creating Drive object",
+		    phosphor::logging::entry("MSG=%s", e.what()),
+		    phosphor::logging::entry("EID=%d", evt.eid));
+	    }
             phosphor::logging::log<phosphor::logging::level::INFO>(
                 "New drive inserted",
                 phosphor::logging::entry("EID=%d", evt.eid));
