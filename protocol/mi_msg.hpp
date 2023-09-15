@@ -123,7 +123,7 @@ class ManagementInterfaceMessage<uint8_t*>
     {
         return buffer;
     }
-    void setMiOpCode(MiOpCode opCode) noexcept
+    void setMiOpCode(MiOpCode opCode)
     {
         this->buffer->opCode = opCode;
         setCRC();

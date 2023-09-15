@@ -151,7 +151,7 @@ class AdminCommand<uint8_t*> : public NVMeMessage<uint8_t*>,
     {
         return buffer;
     }
-    void setAdminOpCode(AdminOpCode opCode) noexcept
+    void setAdminOpCode(AdminOpCode opCode)
     {
         buffer->opCode = opCode;
         setCRC();

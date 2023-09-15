@@ -92,8 +92,7 @@ static inline int8_t convertToCelsius(uint8_t tempByte)
     }
 
     constexpr uint8_t negativeMin = 0xC5;
-    constexpr uint8_t negativeMax = 0xFF;
-    if (negativeMin <= tempByte && tempByte <= negativeMax)
+    if (negativeMin <= tempByte)
     {
         auto tempVal = static_cast<int8_t>(-1 * (256 - tempByte));
         return tempVal;

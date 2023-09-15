@@ -277,8 +277,17 @@ void DeviceUpdateHandler::operator()(
 
 int main()
 {
-    Application app;
-    app.init();
-    app.run();
-    return 0;
+   try
+   {
+	Application app;
+        app.init();
+        app.run();
+	return 0;
+   }
+   catch(const std::exception& e)
+   {
+	 phosphor::logging::log<phosphor::logging::level::ERR>(
+			 (std::string( "Error running nvme-mi application") + e.what()).c_str());
+	 return -1;
+   }
 }
