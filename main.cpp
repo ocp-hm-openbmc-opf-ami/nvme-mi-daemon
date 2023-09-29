@@ -33,6 +33,8 @@ struct DeviceUpdateHandler
     }
     void operator()(void*, const mctpw::Event& evt,
                     boost::asio::yield_context& yield);
+
+    bool createDrive(mctpw::eid_t eid);
     Application& app;
     mctpw::BindingType bindingType;
 };
@@ -55,9 +57,9 @@ class Application
 
         dbusConnection =
             std::make_shared<sdbusplus::asio::connection>(*ioContext);
-        objectServer =
-            std::make_shared<sdbusplus::asio::object_server>(dbusConnection, true);
-	objectServer->add_manager("/xyz/openbmc_project/sensors");
+        objectServer = std::make_shared<sdbusplus::asio::object_server>(
+            dbusConnection, true);
+        objectServer->add_manager("/xyz/openbmc_project/sensors");
         dbusConnection->request_name(serviceName);
 
         boost::asio::spawn(
@@ -72,20 +74,20 @@ class Application
                 wrapper->detectMctpEndpoints(yield);
                 for (auto& [eid, service] : wrapper->getEndpointMap())
                 {
-		    try
-		    {
+                    try
+                    {
                         auto drive = std::make_shared<nvmemi::Drive>(
                             getDriveName(wrapper, eid), eid, *this->objectServer,
                             wrapper);
                         this->drives.emplace(eid, drive);
-		    }
-		    catch (const std::exception& e)
-		    {
-			phosphor::logging::log<phosphor::logging::level::WARNING>(
-			    "Error while creating Drive object",
-			    phosphor::logging::entry("MSG=%s", e.what()), 
-			    phosphor::logging::entry("EID=%d", static_cast<int>(eid)));
-		    }
+                    }
+                    catch (const std::exception& e)
+                    {
+                        phosphor::logging::log<phosphor::logging::level::WARNING>(
+                            "Error while creating Drive object",
+                            phosphor::logging::entry("MSG=%s", e.what()),
+                            phosphor::logging::entry("EID=%d", static_cast<int>(eid)));
+                    }
                 }
                 if (!this->drives.empty())
                 {
@@ -137,10 +139,18 @@ class Application
                 return;
             }
 
-            DriveMap copyDrives(app->drives);
-            for (auto& [eid, drive] : copyDrives)
+            std::vector<std::weak_ptr<nvmemi::Drive>> copyDrives;
+            for (auto& [eid, drive] : app->drives)
             {
-                drive->pollSubsystemHealthStatus(yield);
+                copyDrives.emplace_back(std::weak_ptr<nvmemi::Drive>(drive));
+            }
+            for (auto drive : copyDrives)
+            {
+                auto drivePtr = drive.lock();
+                if (drivePtr)
+                {
+                    drivePtr->pollSubsystemHealthStatus(yield);
+                }
             }
         }
         phosphor::logging::log<phosphor::logging::level::WARNING>(
@@ -219,6 +229,34 @@ class Application
     friend struct DeviceUpdateHandler;
 };
 
+bool DeviceUpdateHandler::createDrive(mctpw::eid_t eid)
+{
+    bool status = false;
+    auto wrapper = app.mctpWrappers.at(bindingType);
+    try
+    {
+        auto drive = std::make_shared<nvmemi::Drive>(
+            app.getDriveName(wrapper, eid), eid, *app.objectServer, wrapper);
+        app.drives.emplace(eid, drive);
+
+        phosphor::logging::log<phosphor::logging::level::INFO>(
+            "New drive inserted", phosphor::logging::entry("EID=%d", eid));
+        status = true;
+    }
+    catch (const std::exception& e)
+    {
+        phosphor::logging::log<phosphor::logging::level::WARNING>(
+            "Error while creating Drive object",
+            phosphor::logging::entry("MSG=%s", e.what()),
+            phosphor::logging::entry("EID=%d", eid));
+    }
+    if (app.drives.size() == 1)
+    {
+        app.resumeHealthStatusPolling();
+    }
+    return status;
+}
+
 void DeviceUpdateHandler::operator()(
     void*, const mctpw::Event& evt,
     [[maybe_unused]] boost::asio::yield_context& wrapperContext)
@@ -226,28 +264,31 @@ void DeviceUpdateHandler::operator()(
     switch (evt.type)
     {
         case mctpw::Event::EventType::deviceAdded: {
-            auto wrapper = app.mctpWrappers.at(bindingType);
-	    try
-	    {
-                auto drive = std::make_shared<nvmemi::Drive>(
-                    app.getDriveName(wrapper, evt.eid), evt.eid, *app.objectServer,
-                    wrapper);
-                app.drives.emplace(evt.eid, drive);
-	    }
-	    catch (const std::exception& e)
-	    {
-		phosphor::logging::log<phosphor::logging::level::WARNING>(
-		    "Error while creating Drive object",
-		    phosphor::logging::entry("MSG=%s", e.what()),
-		    phosphor::logging::entry("EID=%d", evt.eid));
-	    }
-            phosphor::logging::log<phosphor::logging::level::INFO>(
-                "New drive inserted",
-                phosphor::logging::entry("EID=%d", evt.eid));
-            if (app.drives.size() == 1)
-            {
-                app.resumeHealthStatusPolling();
-            }
+            boost::asio::spawn(app.ioContext, [this, evt](boost::asio::yield_context yield){
+                bool driveCreated = false;
+                uint8_t retryCount = 3;
+                // Retry 3 times if the drive object is still getting polled
+                while (!driveCreated && retryCount > 0)
+                {
+                    boost::asio::deadline_timer timer(*this->app.ioContext);
+                    timer.expires_from_now(boost::posix_time::millisec(400));
+                    boost::system::error_code ec;
+                    timer.async_wait(yield[ec]);
+                    retryCount--;
+                    driveCreated = createDrive(evt.eid);
+                    if (!driveCreated)
+                    {
+                        timer.expires_from_now(boost::posix_time::millisec(300));
+                        // Timeout value for health status poll is 300ms. Using the same value here.
+                        boost::system::error_code ec;
+                        timer.async_wait(yield[ec]);
+                        if (ec)
+                        {
+                            break;
+                        }
+                    }
+                }
+            });
         }
         break;
         case mctpw::Event::EventType::deviceRemoved: {

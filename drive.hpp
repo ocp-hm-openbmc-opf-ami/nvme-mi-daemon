@@ -58,7 +58,7 @@ class Drive
     std::shared_ptr<mctpw::MCTPWrapper> mctpWrapper{};
     NumericSensor subsystemTemp;
     mctpw::eid_t mctpEid{};
-    static constexpr std::chrono::milliseconds hsPollTimeout{100};
+    static constexpr std::chrono::milliseconds hsPollTimeout{300};
     bool cwarnState = false;
     std::unique_ptr<sdbusplus::asio::dbus_interface> driveLogInterface{};
     static inline bool pausePollRequested = false;
