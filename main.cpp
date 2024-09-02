@@ -149,7 +149,16 @@ class Application
                 auto drivePtr = drive.lock();
                 if (drivePtr)
                 {
-                    drivePtr->pollSubsystemHealthStatus(yield);
+                    try
+                    {
+                        drivePtr->pollSubsystemHealthStatus(yield);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        phosphor::logging::log<phosphor::logging::level::WARNING>(
+                            "Error while subsystem health status polling",
+                            phosphor::logging::entry("MSG=%s", e.what()));
+                    }
                 }
             }
         }
