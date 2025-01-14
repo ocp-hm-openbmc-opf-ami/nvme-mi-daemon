@@ -93,7 +93,7 @@ class Application
                 {
                     resumeHealthStatusPolling();
                 }
-            });
+            }, {});
 
         if (auto envPtr = std::getenv("NVME_DEBUG"))
         {
@@ -185,7 +185,7 @@ class Application
             boost::asio::spawn(*ioContext,
                                [this](boost::asio::yield_context yield) {
                                    doPoll(yield, this);
-                               });
+                               }, {});
         }
 
         phosphor::logging::log<phosphor::logging::level::INFO>(
