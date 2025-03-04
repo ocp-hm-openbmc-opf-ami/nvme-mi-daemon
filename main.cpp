@@ -62,7 +62,7 @@ class Application
         objectServer->add_manager("/xyz/openbmc_project/sensors");
         dbusConnection->request_name(serviceName);
 
-        boost::asio::spawn(
+        (void)boost::asio::spawn(
             *ioContext, [this](boost::asio::yield_context yield) {
                 constexpr auto bindingType = mctpw::BindingType::mctpOverSmBus;
                 mctpw::MCTPConfiguration config(mctpw::MessageType::nvmeMgmtMsg,
@@ -182,7 +182,7 @@ class Application
         if (!pollTimer)
         {
             pollTimer = std::make_shared<boost::asio::steady_timer>(*ioContext);
-            boost::asio::spawn(*ioContext,
+            (void)boost::asio::spawn(*ioContext,
                                [this](boost::asio::yield_context yield) {
                                    doPoll(yield, this);
                                }, {});
@@ -273,7 +273,8 @@ void DeviceUpdateHandler::operator()(
     switch (evt.type)
     {
         case mctpw::Event::EventType::deviceAdded: {
-            boost::asio::spawn(app.ioContext, [this, evt](boost::asio::yield_context yield){
+            (void)boost::asio::spawn(
+                *app.ioContext, [this, evt](boost::asio::yield_context yield) {
                 bool driveCreated = false;
                 uint8_t retryCount = 3;
                 // Retry 3 times if the drive object is still getting polled
@@ -297,7 +298,7 @@ void DeviceUpdateHandler::operator()(
                         }
                     }
                 }
-            });
+            }, {});
         }
         break;
         case mctpw::Event::EventType::deviceRemoved: {
